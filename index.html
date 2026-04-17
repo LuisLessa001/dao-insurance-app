@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeFi Insurance · Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+
+/* ════════════════════════════════════════════════════════
+   DESIGN TOKENS — DARK (padrão)
+   ════════════════════════════════════════════════════════ */
+:root {
+  /* cores base */
+  --bg:           #04080f;
+  --bg2:          #080e1a;
+  --surface:      rgba(6,12,22,0.88);
+  --glass:        rgba(10,18,35,0.72);
+  --border:       rgba(255,255,255,0.07);
+  --border-hi:    rgba(255,255,255,0.14);
+
+  /* acento primário */
+  --teal:         #00ffe0;
+  --teal-dim:     rgba(0,255,224,0.09);
+  --teal-mid:     rgba(0,255,224,0.18);
+
+  /* acentos secundários */
+  --violet:       #a259ff;
+  --violet-dim:   rgba(162,89,255,0.09);
+  --amber:        #ffb340;
+  --red:          #ff4d6d;
+  --green:        #00e676;
+  --pink:         #ff6a88;
+
+  /* tipografia */
+  --text:         #d8e4f0;
+  --text-strong:  #eef4fc;
+  --muted:        #3d5470;
+  --muted2:       #6e88a4;
+
+  /* raios */
+  --r:  12px;
+  --r2: 18px;
+  --r3: 26px;
+
+  /* tamanho de fonte base — controlado via JS */
+  --fs: 14px;
+}
+
+/* ════════════════════════════════════════════════════════
+   DESIGN TOKENS — LIGHT
+   ════════════════════════════════════════════════════════ */
+[data-theme="light"] {
+  --bg:           #eef2f7;
+  --bg2:          #e2e9f2;
+  --surface:      rgba(220,230,244,0.92);
+  --glass:        rgba(255,255,255,0.82);
+  --border:       rgba(0,30,80,0.09);
+  --border-hi:    rgba(0,30,80,0.17);
+
+  --teal:         #008c7a;
+  --teal-dim:     rgba(0,140,122,0.09);
+  --teal-mid:     rgba(0,140,122,0.18);
+
+  --violet:       #6120cc;
+  --violet-dim:   rgba(97,32,204,0.09);
+  --amber:        #b86e00;
+  --red:          #c8203c;
+  --green:        #007a3a;
+  --pink:         #c03050;
+
+  --text:         #0d1c2e;
+  --text-strong:  #060f1c;
+  --muted:        #8fa5be;
+  --muted2:       #4a6480;
+}
+
+/* ajustes estruturais para o tema claro */
+[data-theme="light"] body::before {
+  background-image:
+    linear-gradient(rgba(0,140,122,0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,140,122,0.055) 1px, transparent 1px);
+}
+[data-theme="light"] .orb-a { background: rgba(0,140,122,0.09); }
+[data-theme="light"] .orb-b { background: rgba(97,32,204,0.07); }
+[data-theme="light"] .sidebar { background: rgba(210,222,238,0.94); border-right-color: var(--border-hi); }
+[data-theme="light"] #overlay { background: rgba(238,242,247,0.96); }
+[data-theme="light"] .conn-card { box-shadow: 0 0 60px rgba(0,140,122,0.08), 0 30px 70px rgba(0,0,0,0.12); }
+[data-theme="light"] .conn-card h2 { color: var(--text-strong); }
+[data-theme="light"] .field input { background: rgba(255,255,255,0.85); }
+[data-theme="light"] #toast { background: #fff; }
+[data-theme="light"] .page-title {
+  background: linear-gradient(100deg, var(--text-strong) 40%, var(--teal));
+  -webkit-background-clip: text; background-clip: text;
+}
+[data-theme="light"] .nav-tab:hover { background: rgba(0,0,0,0.05); }
+[data-theme="light"] .nav-tab.active { border-color: var(--teal-mid); }
+[data-theme="light"] .btn-ghost { border-color: var(--border-hi); color: var(--muted2); }
+[data-theme="light"] .btn-ghost:hover { background: rgba(0,0,0,0.05); color: var(--text); }
+
+/* ════════════════════════════════════════════════════════
+   BASE
+   ════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: var(--fs);   /* controlado pelo slider de acessibilidade */
+  transition: font-size .15s ease;
+}
+
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  transition: background .3s, color .3s;
+}
+
+/* grade de pontos de fundo */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,224,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,224,0.022) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none; z-index: 0;
+}
+
+/* orbs de luz ambiente */
+.orb { position: fixed; border-radius: 50%; filter: blur(110px); pointer-events: none; z-index: 0; }
+.orb-a { width:600px;height:600px;background:rgba(0,255,224,0.05);top:-180px;left:-160px;animation:drift 22s ease-in-out infinite alternate; }
+.orb-b { width:500px;height:500px;background:rgba(162,89,255,0.045);bottom:-110px;right:-80px;animation:drift 28s ease-in-out infinite alternate-reverse; }
+@keyframes drift { to { transform: translate(70px,60px) scale(1.14); } }
+
+/* ════════════════════════════════════════════════════════
+   OVERLAY DE CONEXÃO
+   ════════════════════════════════════════════════════════ */
+#overlay {
+  position: fixed; inset: 0;
+  background: rgba(4,8,15,0.96);
+  backdrop-filter: blur(26px);
+  z-index: 900;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn .3s ease;
+  transition: background .3s;
+}
+.conn-card {
+  width: 350px;
+  background: var(--glass);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r3);
+  padding: 48px 40px 44px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 0 80px rgba(0,255,224,0.07), 0 40px 80px rgba(0,0,0,0.55);
+  backdrop-filter: blur(22px);
+  animation: rise .5s cubic-bezier(.22,1,.36,1);
+}
+.conn-card::before {
+  content: ''; position: absolute; top: 0; left: 18%; right: 18%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--teal), transparent);
+}
+.conn-mark {
+  width: 60px; height: 60px; margin: 0 auto 22px;
+  background: var(--teal-dim);
+  border: 1px solid var(--teal-mid);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+}
+.conn-card h2 {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 2rem; font-weight: 700; letter-spacing: .04em;
+  color: var(--text-strong); margin-bottom: 10px;
+}
+.conn-card p { font-size: .9rem; color: var(--muted2); line-height: 1.75; margin-bottom: 34px; }
+
+/* ════════════════════════════════════════════════════════
+   SHELL (layout 2 colunas)
+   ════════════════════════════════════════════════════════ */
+.shell {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  min-height: 100dvh;
+}
+
+/* ════════════════════════════════════════════════════════
+   SIDEBAR
+   ════════════════════════════════════════════════════════ */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  display: flex; flex-direction: column;
+  padding: 22px 16px;
+  position: sticky; top: 0; height: 100dvh; overflow-y: auto;
+  transition: background .3s, border-color .3s;
+}
+
+/* marca */
+.brand { display: flex; align-items: center; gap: 9px; margin-bottom: 26px; }
+.brand-icon {
+  width: 34px; height: 34px;
+  background: var(--teal-dim);
+  border: 1px solid var(--teal-mid);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.brand-name {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--teal);
+  flex: 1;
+}
+
+/* chip da carteira */
+.wallet-chip {
+  background: var(--teal-dim);
+  border: 1px solid var(--teal-mid);
+  border-radius: var(--r);
+  padding: 11px 13px;
+  margin-bottom: 18px;
+  position: relative; overflow: hidden;
+}
+.wallet-chip::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--teal), transparent);
+  opacity: .5;
+}
+.wc-label { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted2); margin-bottom: 5px; }
+#dispAddr { font-family: 'JetBrains Mono', monospace; font-size: .82rem; color: var(--teal); font-weight: 500; }
+
+/* nav */
+.nav-tabs { display: flex; flex-direction: column; gap: 3px; margin-bottom: 18px; }
+.nav-tab {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 11px; border-radius: 9px;
+  font-size: .82rem; font-weight: 500; letter-spacing: .02em;
+  color: var(--muted2); cursor: pointer;
+  transition: all .2s; border: 1px solid transparent; background: transparent; text-align: left;
+}
+.nav-tab:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.nav-tab.active { background: var(--teal-dim); color: var(--teal); border-color: var(--teal-mid); }
+.nav-tab .ti { font-size: .93rem; width: 18px; text-align: center; }
+
+/* lista de saldos */
+.stats-list { flex: 1; }
+.stat-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.stat-item:last-child { border-bottom: none; }
+.sk { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted2); }
+.sv { font-family: 'JetBrains Mono', monospace; font-size: .87rem; font-weight: 500; }
+.sv-teal   { color: var(--teal); }
+.sv-violet { color: var(--violet); }
+
+/* rodapé da sidebar */
+.sidebar-foot { padding-top: 16px; border-top: 1px solid var(--border); }
+#dispEth {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .7rem; color: var(--muted2); text-align: center; margin-bottom: 11px;
+}
+
+/* ════════════════════════════════════════════════════════
+   PAINEL DE ACESSIBILIDADE (dentro da sidebar)
+   ════════════════════════════════════════════════════════ */
+.a11y-panel {
+  background: var(--teal-dim);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r);
+  padding: 13px 14px;
+  margin-bottom: 14px;
+}
+.a11y-title {
+  font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted2); font-weight: 600; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* linha do slider de fonte */
+.a11y-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.a11y-label { font-size: .72rem; color: var(--muted2); min-width: 60px; }
+.a11y-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .72rem; color: var(--teal); min-width: 30px; text-align: right;
+}
+
+/* slider estilizado */
+input[type="range"].a11y-slider {
+  flex: 1; height: 4px;
+  -webkit-appearance: none; appearance: none;
+  background: var(--border-hi);
+  border-radius: 2px; outline: none; cursor: pointer;
+  border: none; padding: 0;
+  box-shadow: none;
+}
+input[type="range"].a11y-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 6px var(--teal-mid);
+  cursor: pointer;
+}
+input[type="range"].a11y-slider::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--teal); border: none;
+  box-shadow: 0 0 6px var(--teal-mid);
+}
+
+/* botões de tamanho rápido */
+.fs-presets { display: flex; gap: 5px; margin-top: 6px; }
+.fs-btn {
+  flex: 1; padding: 5px 0; border-radius: 7px;
+  font-family: 'Rajdhani', sans-serif; font-weight: 700;
+  font-size: .75rem; letter-spacing: .05em;
+  border: 1px solid var(--border-hi);
+  background: transparent; color: var(--muted2);
+  cursor: pointer; transition: all .18s;
+}
+.fs-btn:hover { background: var(--teal-dim); color: var(--teal); }
+.fs-btn.active { background: var(--teal-dim); color: var(--teal); border-color: var(--teal-mid); }
+
+/* botão de tema (dentro da brand) */
+.theme-btn {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--border-hi);
+  background: var(--teal-dim);
+  color: var(--teal);
+  font-size: .93rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s; flex-shrink: 0;
+}
+.theme-btn:hover { background: var(--teal-mid); }
+
+/* ════════════════════════════════════════════════════════
+   ÁREA PRINCIPAL
+   ════════════════════════════════════════════════════════ */
+.main { padding: 30px 26px; display: flex; flex-direction: column; gap: 22px; }
+
+/* barra superior */
+.topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.page-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 2.1rem; font-weight: 700; letter-spacing: .04em;
+  background: linear-gradient(100deg, var(--text-strong) 40%, var(--teal));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  line-height: 1;
+}
+.page-sub { font-size: .72rem; color: var(--muted2); margin-top: 5px; letter-spacing: .04em; }
+
+.pill {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(0,230,118,0.07);
+  border: 1px solid rgba(0,230,118,0.2);
+  border-radius: 100px; padding: 6px 14px;
+  font-size: .75rem; color: var(--green); font-weight: 600; letter-spacing: .05em;
+  flex-shrink: 0;
+}
+.dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: blink 2s ease-in-out infinite; }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+
+/* ── Faixa de resumo ─────────────────────────────────── */
+.summary-strip { display: grid; grid-template-columns: repeat(3,1fr); gap: 13px; }
+.sum-card {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 16px 18px;
+  backdrop-filter: blur(10px);
+  position: relative; overflow: hidden;
+  transition: border-color .25s, background .3s;
+}
+.sum-card:hover { border-color: var(--border-hi); }
+.sum-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--sc, var(--teal)) 50%, transparent);
+  opacity: .55;
+}
+.sum-card.c-teal   { --sc: var(--teal); }
+.sum-card.c-violet { --sc: var(--violet); }
+.sum-card.c-amber  { --sc: var(--amber); }
+.sc-label { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted2); margin-bottom: 7px; }
+.sc-value {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.85rem; font-weight: 700; letter-spacing: .02em; line-height: 1;
+}
+.sc-value.teal   { color: var(--teal); }
+.sc-value.violet { color: var(--violet); }
+.sc-value.amber  { color: var(--amber); }
+.sc-sub { font-size: .68rem; color: var(--muted2); margin-top: 4px; }
+
+/* ── Grid de cards ───────────────────────────────────── */
+.grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; }
+
+/* ── Card ────────────────────────────────────────────── */
+.card {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 20px;
+  backdrop-filter: blur(12px);
+  position: relative; overflow: hidden;
+  transition: border-color .25s, transform .25s, background .3s;
+  animation: rise .4s cubic-bezier(.22,1,.36,1) both;
+}
+.card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+.card::before {
+  content: ''; position: absolute; top: 0; left: 14%; right: 14%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cc, var(--teal)) 50%, transparent);
+  opacity: .45;
+}
+.c-tl { --cc: var(--teal); }
+.c-vi { --cc: var(--violet); }
+.c-am { --cc: var(--amber); }
+.c-rd { --cc: var(--pink); }
+.card:nth-child(1){animation-delay:.04s;}
+.card:nth-child(2){animation-delay:.09s;}
+.card:nth-child(3){animation-delay:.14s;}
+.card:nth-child(4){animation-delay:.19s;}
+
+/* cabeçalho do card */
+.ch { display: flex; align-items: center; gap: 9px; margin-bottom: 18px; }
+.ci {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-hi);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .87rem; flex-shrink: 0;
+}
+.ct { font-family: 'Rajdhani', sans-serif; font-size: .95rem; font-weight: 700; letter-spacing: .04em; }
+.cbadge {
+  margin-left: auto;
+  font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 100px; border: 1px solid;
+}
+.bg-teal { color: var(--teal);   border-color: var(--teal-mid);          background: var(--teal-dim); }
+.bg-vi   { color: var(--violet); border-color: var(--violet-dim);         background: var(--violet-dim); }
+.bg-am   { color: var(--amber);  border-color: rgba(255,179,64,0.2);      background: rgba(255,179,64,0.07); }
+.bg-rd   { color: var(--pink);   border-color: rgba(255,106,136,0.2);     background: rgba(255,106,136,0.07); }
+
+/* ── Campos de formulário ────────────────────────────── */
+.field { margin-bottom: 12px; }
+.field label {
+  display: block; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted2); margin-bottom: 6px; font-weight: 600;
+}
+.field input {
+  width: 100%;
+  background: rgba(0,0,0,0.32);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  color: var(--text-strong);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .87rem; outline: none;
+  transition: border-color .2s, box-shadow .2s, background .3s, color .3s;
+}
+.field input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-dim);
+}
+.field input::placeholder { color: var(--muted); }
+.field-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field-2 .field { margin-bottom: 0; }
+
+/* ── Botões ──────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: 'Rajdhani', sans-serif; font-weight: 700;
+  font-size: .87rem; letter-spacing: .07em; text-transform: uppercase;
+  padding: 10px 16px; border-radius: var(--r); border: none;
+  cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.btn-teal {
+  background: linear-gradient(135deg, var(--teal), #00c8b0);
+  color: #03100d;
+  box-shadow: 0 4px 20px rgba(0,255,224,0.2);
+}
+.btn-teal:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(0,255,224,0.33); }
+
+.btn-vi {
+  background: linear-gradient(135deg, var(--violet), #6820d8);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(162,89,255,0.2);
+}
+.btn-vi:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(162,89,255,0.33); }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-hi);
+  color: var(--muted2);
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+
+.btn-red {
+  background: rgba(255,77,109,0.1);
+  border: 1px solid rgba(255,77,109,0.28);
+  color: var(--red);
+}
+.btn-red:hover { background: rgba(255,77,109,0.18); }
+
+.btn-approve {
+  background: linear-gradient(135deg, #00e676, #00b858);
+  color: #011a09; flex: 1;
+  box-shadow: 0 4px 16px rgba(0,230,118,0.18);
+}
+.btn-reject {
+  background: linear-gradient(135deg, #ff4d6d, #c01030);
+  color: #fff; flex: 1;
+  box-shadow: 0 4px 16px rgba(255,77,109,0.18);
+}
+.btn-full { width: 100%; }
+.btn-row { display: flex; gap: 9px; margin-top: 13px; }
+
+.btn-faucet {
+  width: 100%; padding: 10px; border-radius: var(--r);
+  background: var(--violet-dim);
+  border: 1px solid rgba(162,89,255,0.22);
+  color: var(--violet);
+  font-family: 'Rajdhani', sans-serif; font-size: .8rem; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+  cursor: pointer; transition: all .2s;
+}
+.btn-faucet:hover { background: rgba(162,89,255,0.16); }
+
+.btn-conn {
+  width: 100%; padding: 15px; border-radius: var(--r2); border: none; cursor: pointer;
+  background: linear-gradient(135deg, #00ffe0 0%, #a259ff 100%);
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif; font-size: .95rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  box-shadow: 0 8px 32px rgba(0,255,224,0.22);
+  transition: all .25s;
+}
+.btn-conn:hover { transform: translateY(-2px); box-shadow: 0 12px 42px rgba(0,255,224,0.36); }
+
+/* ── DAO — dois blocos lado a lado ───────────────────── */
+.dao-card { grid-column: 1/-1; display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+.dao-col-title {
+  font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted2); font-weight: 700; margin-bottom: 13px;
+}
+
+/* ── Oráculo — display de preço ──────────────────────── */
+.price-wrap {
+  margin: 13px 0;
+  background: linear-gradient(135deg, rgba(255,179,64,0.06), rgba(162,89,255,0.04));
+  border: 1px solid rgba(255,179,64,0.15);
+  border-radius: var(--r2);
+  padding: 18px; text-align: center;
+  position: relative; overflow: hidden;
+}
+.price-wrap::before {
+  content: 'ETH / USD';
+  position: absolute; top: 7px; right: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .62rem; color: var(--muted2); letter-spacing: .08em;
+}
+#priceBox {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 2.6rem; font-weight: 700; letter-spacing: .02em;
+  background: linear-gradient(120deg, var(--amber), var(--violet));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  line-height: 1;
+}
+.price-sub { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--muted2); margin-top: 5px; }
+
+/* ── Toast ───────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 22px; right: 22px;
+  background: var(--bg2);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r2); padding: 13px 17px;
+  font-size: .87rem; max-width: 300px; z-index: 9999;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+  transform: translateY(130%);
+  transition: transform .35s cubic-bezier(.22,1,.36,1), background .3s;
+}
+#toast.show { transform: translateY(0); }
+#toast.ok  { border-color: var(--teal-mid); }
+#toast.err { border-color: rgba(255,77,109,0.35); }
+
+/* ── Estado de carregamento nos botões ───────────────── */
+.btn.loading { opacity: .5; pointer-events: none; }
+
+/* ── Animações ───────────────────────────────────────── */
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes rise   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+.hidden { display: none !important; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 4px; }
+
+</style>
+</head>
+<body>
+
+<div class="orb orb-a"></div>
+<div class="orb orb-b"></div>
+
+<!-- ── Overlay de conexão ─── -->
+<div id="overlay">
+  <div class="conn-card">
+    <div class="conn-mark">🛡</div>
+    <h2>DeFi Insurance</h2>
+    <p>Protocolo descentralizado de seguros<br>na rede Ethereum Sepolia.</p>
+    <button id="connectBtnMain" class="btn-conn">Conectar Carteira</button>
+  </div>
+</div>
+
+<!-- ── Toast ─── -->
+<div id="toast">
+  <span id="toastIcon">✅</span>
+  <span id="toastMsg"></span>
+</div>
+
+<!-- ── Shell ─── -->
+<div class="shell">
+
+  <!-- ══ Sidebar ══ -->
+  <aside class="sidebar">
+
+    <div class="brand">
+      <div class="brand-icon">🛡</div>
+      <span class="brand-name">DeFi Insure</span>
+      <!-- botão de alternância dark/light -->
+      <button id="themeBtn" class="theme-btn" title="Alternar tema">🌙</button>
+    </div>
+
+    <div class="wallet-chip">
+      <div class="wc-label">Carteira Ativa</div>
+      <div id="dispAddr">0x····</div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active"><span class="ti">▦</span>Dashboard</button>
+      <button class="nav-tab"><span class="ti">📄</span>Apólices</button>
+      <button class="nav-tab"><span class="ti">⚖️</span>Governança</button>
+      <button class="nav-tab"><span class="ti">📊</span>Analytics</button>
+    </nav>
+
+    <!-- Saldos -->
+    <div class="stats-list">
+      <div class="stat-item">
+        <span class="sk">$SEGURO</span>
+        <span id="dispToken" class="sv sv-teal">0.00</span>
+      </div>
+      <div class="stat-item">
+        <span class="sk">Em Staking</span>
+        <span id="dispStake" class="sv sv-violet">0.00</span>
+      </div>
+      <div class="stat-item">
+        <span class="sk">Rede</span>
+        <span class="sv" style="font-size:.78rem;">Sepolia</span>
+      </div>
+    </div>
+
+    <!-- ══ Painel de Acessibilidade ══ -->
+    <div class="a11y-panel" style="margin-top:16px;">
+      <div class="a11y-title">♿ Acessibilidade</div>
+
+      <!-- Slider de tamanho de fonte -->
+      <div class="a11y-row">
+        <span class="a11y-label">Texto</span>
+        <input type="range" id="fsSlider" class="a11y-slider" min="11" max="20" value="14" step="1">
+        <span class="a11y-val" id="fsVal">14px</span>
+      </div>
+
+      <!-- Atalhos rápidos de tamanho -->
+      <div class="fs-presets">
+        <button class="fs-btn" data-size="12">P</button>
+        <button class="fs-btn active" data-size="14">M</button>
+        <button class="fs-btn" data-size="17">G</button>
+        <button class="fs-btn" data-size="20">XG</button>
+      </div>
+    </div>
+
+    <!-- Rodapé -->
+    <div class="sidebar-foot" style="margin-top:14px;">
+      <div id="dispEth">–.–––– ETH</div>
+      <button id="btnFaucet" class="btn-faucet">⚗ Coletar Tokens de Teste</button>
+    </div>
+
+  </aside>
+
+  <!-- ══ Main ══ -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div>
+        <div class="page-title">Painel de Controle</div>
+        <div class="page-sub">Protocolo DeFi Insurance · Testnet Sepolia · MVP Capítulo 5</div>
+      </div>
+      <div class="pill"><span class="dot"></span>Rede Online</div>
+    </div>
+
+    <!-- Faixa de resumo -->
+    <div class="summary-strip">
+      <div class="sum-card c-teal">
+        <div class="sc-label">Saldo $SEGURO</div>
+        <div id="sTokenBig" class="sc-value teal">0.00</div>
+        <div class="sc-sub">Tokens disponíveis</div>
+      </div>
+      <div class="sum-card c-violet">
+        <div class="sc-label">Em Staking</div>
+        <div id="sStakeBig" class="sc-value violet">0.00</div>
+        <div class="sc-sub">Liquidez provida</div>
+      </div>
+      <div class="sum-card c-amber">
+        <div class="sc-label">ETH Disponível</div>
+        <div id="sEthBig" class="sc-value amber">0.0000</div>
+        <div class="sc-sub">Saldo na carteira</div>
+      </div>
+    </div>
+
+    <!-- Grid de cards funcionais -->
+    <div class="grid">
+
+      <!-- Staking -->
+      <div class="card c-tl">
+        <div class="ch">
+          <div class="ci">🏦</div>
+          <span class="ct">Fundo de Liquidez</span>
+          <span class="cbadge bg-teal">Staking</span>
+        </div>
+        <div class="field">
+          <label>Quantidade de Tokens</label>
+          <input type="number" id="inStake" placeholder="Ex: 1000">
+        </div>
+        <div class="btn-row">
+          <button id="runStake"   class="btn btn-teal btn-full">↑ Depositar</button>
+          <button id="runUnstake" class="btn btn-red  btn-full">↓ Sacar</button>
+        </div>
+      </div>
+
+      <!-- Apólice NFT -->
+      <div class="card c-vi">
+        <div class="ch">
+          <div class="ci">📄</div>
+          <span class="ct">Nova Apólice</span>
+          <span class="cbadge bg-vi">ERC-721</span>
+        </div>
+        <div class="field">
+          <label>Valor de Cobertura</label>
+          <input type="number" id="inNFTCov" placeholder="Ex: 5000">
+        </div>
+        <div class="field">
+          <label>Duração (Dias)</label>
+          <input type="number" id="inNFTDur" placeholder="Ex: 365">
+        </div>
+        <button id="runMintNFT" class="btn btn-vi btn-full">✦ Emitir Apólice NFT</button>
+      </div>
+
+      <!-- DAO — dois blocos -->
+      <div class="card c-am dao-card">
+        <div>
+          <div class="ch">
+            <div class="ci">⚖️</div>
+            <span class="ct">Governança DAO</span>
+            <span class="cbadge bg-am">DAO</span>
+          </div>
+          <div class="dao-col-title">Solicitar Indenização</div>
+          <div class="field-2">
+            <div class="field">
+              <label>ID Apólice</label>
+              <input type="number" id="inClaimId" placeholder="ID">
+            </div>
+            <div class="field">
+              <label>Valor ($)</label>
+              <input type="number" id="inClaimAmt" placeholder="Valor">
+            </div>
+          </div>
+          <button id="runClaim" class="btn btn-ghost btn-full" style="margin-top:12px;">Abrir Sinistro</button>
+        </div>
+        <div>
+          <div class="dao-col-title" style="padding-top:44px;">Votar em Sinistro</div>
+          <div class="field">
+            <label>ID do Sinistro</label>
+            <input type="number" id="inVoteId" placeholder="ID do sinistro">
+          </div>
+          <div class="btn-row">
+            <button id="runVoteYes" class="btn btn-approve">✔ Aprovar</button>
+            <button id="runVoteNo"  class="btn btn-reject">✘ Rejeitar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Oráculo -->
+      <div class="card c-rd" style="grid-column:2;">
+        <div class="ch">
+          <div class="ci">🔗</div>
+          <span class="ct">Oráculo Chainlink</span>
+          <span class="cbadge bg-rd">Live</span>
+        </div>
+        <p style="font-size:.82rem;color:var(--muted2);line-height:1.7;margin-bottom:4px;">
+          Consulta em tempo real do par <strong style="color:var(--amber)">ETH/USD</strong> via Chainlink na Sepolia.
+        </p>
+        <div class="price-wrap">
+          <div id="priceBox">— —</div>
+          <div class="price-sub">dólares por ETH</div>
+        </div>
+        <button id="runOracle" class="btn btn-ghost btn-full">↻ Atualizar Cotação</button>
+      </div>
+
+    </div><!-- /grid -->
+  </main>
+</div><!-- /shell -->
+
+<script src="contratos.js"></script>
+<script>
+let provider, signer, user;
+let cToken, cStaking, cDAO, cNFT, cOracle;
+
+/* ── Tema dark/light ─── */
+const ROOT      = document.documentElement;
+const themeBtn  = document.getElementById('themeBtn');
+
+themeBtn.addEventListener('click', () => {
+  const light = ROOT.getAttribute('data-theme') === 'light';
+  ROOT.setAttribute('data-theme', light ? 'dark' : 'light');
+  themeBtn.textContent = light ? '🌙' : '☀️';
+});
+
+/* ── Acessibilidade: tamanho de fonte ─── */
+const fsSlider   = document.getElementById('fsSlider');
+const fsValLabel = document.getElementById('fsVal');
+const fsBtns     = document.querySelectorAll('.fs-btn');
+
+function applyFontSize(px) {
+  ROOT.style.setProperty('--fs', px + 'px');
+  fsSlider.value      = px;
+  fsValLabel.textContent = px + 'px';
+  /* atualiza destaque nos botões de preset */
+  fsBtns.forEach(b => b.classList.toggle('active', +b.dataset.size === +px));
+}
+
+fsSlider.addEventListener('input', () => applyFontSize(+fsSlider.value));
+
+fsBtns.forEach(btn => {
+  btn.addEventListener('click', () => applyFontSize(+btn.dataset.size));
+});
+
+/* ── Toast ─── */
+function toast(msg, ok = true) {
+  const el = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = ok ? '✅' : '❌';
+  document.getElementById('toastMsg').textContent  = msg;
+  el.className = `show ${ok ? 'ok' : 'err'}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 4500);
+}
+
+/* ── Conectar carteira ─── */
+async function connect() {
+  if (!window.ethereum) return toast('Instale a MetaMask!', false);
+
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0xaa36a7' }],
+    });
+  } catch (error) {
+    console.error(error);
+    return toast('Por favor, mude para a rede Sepolia manualmente na MetaMask.', false);
+  }
+
+  const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
+  user = accs[0];
+  
+  provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+  signer   = provider.getSigner();
+
+  cToken   = new ethers.Contract(ENDERECO_TOKEN,   ABI_TOKEN,   signer);
+  cStaking = new ethers.Contract(ENDERECO_STAKING, ABI_STAKING, signer);
+  cDAO     = new ethers.Contract(ENDERECO_DAO,     ABI_DAO,     signer);
+  cNFT     = new ethers.Contract(ENDERECO_NFT,     ABI_NFT,     signer);
+  cOracle  = new ethers.Contract(ENDERECO_ORACULO, ABI_ORACULO, signer);
+
+  document.getElementById('dispAddr').textContent = user.slice(0,6) + '···' + user.slice(-4);
+  document.getElementById('overlay').classList.add('hidden');
+  refresh();
+}
+
+/* ── Atualizar saldos ─── */
+async function refresh() {
+  const [eth, tok, stk] = await Promise.all([
+    provider.getBalance(user),
+    cToken.balanceOf(user),
+    cStaking.balances(user),
+  ]);
+  const fE = parseFloat(ethers.utils.formatEther(eth)).toFixed(4);
+  const fT = parseFloat(ethers.utils.formatUnits(tok, 18)).toFixed(2);
+  const fS = parseFloat(ethers.utils.formatUnits(stk, 18)).toFixed(2);
+
+  document.getElementById('dispEth').textContent   = fE + ' ETH';
+  document.getElementById('dispToken').textContent = fT;
+  document.getElementById('dispStake').textContent = fS;
+  document.getElementById('sTokenBig').textContent = fT;
+  document.getElementById('sStakeBig').textContent = fS;
+  document.getElementById('sEthBig').textContent   = fE;
+}
+
+/* ── Wrapper genérico para transações ─── */
+async function handleTx(btn, fn, label) {
+  const orig = btn.textContent;
+  btn.classList.add('loading');
+  btn.textContent = 'Aguardando…';
+  try {
+    const tx = await fn();
+    await tx.wait();
+    toast(`${label} concluído!`);
+    refresh();
+  } catch(e) {
+    toast('Erro na transação. Veja o console.', false);
+    console.error(e);
+  } finally {
+    btn.classList.remove('loading');
+    btn.textContent = orig;
+  }
+}
+
+/* ── Listeners ─── */
+document.getElementById('connectBtnMain').onclick = connect;
+
+document.getElementById('btnFaucet').onclick = function() {
+  handleTx(this, () => cToken.mint(user, ethers.utils.parseUnits('1000', 18)), 'Mint de 1.000 $SEGURO');
+};
+
+document.getElementById('runStake').onclick = async function() {
+  const val = ethers.utils.parseUnits(document.getElementById('inStake').value, 18);
+  const app = await cToken.approve(ENDERECO_STAKING, val);
+  await app.wait();
+  handleTx(this, () => cStaking.stakeTokens(val), 'Depósito (Stake)');
+};
+
+document.getElementById('runUnstake').onclick = function() {
+  const val = ethers.utils.parseUnits(document.getElementById('inStake').value, 18);
+  handleTx(this, () => cStaking.withdrawTokens(val), 'Saque (Unstake)');
+};
+
+document.getElementById('runMintNFT').onclick = function() {
+  const cov = ethers.utils.parseUnits(document.getElementById('inNFTCov').value, 18);
+  const dur = document.getElementById('inNFTDur').value;
+  handleTx(this, () => cNFT.mintPolicy(user, cov, dur), 'Emissão de Apólice NFT');
+};
+
+document.getElementById('runClaim').onclick = function() {
+  const id  = document.getElementById('inClaimId').value;
+  const amt = ethers.utils.parseUnits(document.getElementById('inClaimAmt').value, 18);
+  handleTx(this, () => cDAO.fileClaim(id, amt), 'Abertura de Sinistro');
+};
+
+document.getElementById('runVoteYes').onclick = function() {
+  handleTx(this, () => cDAO.vote(document.getElementById('inVoteId').value, true), 'Voto Favorável');
+};
+
+document.getElementById('runVoteNo').onclick = function() {
+  handleTx(this, () => cDAO.vote(document.getElementById('inVoteId').value, false), 'Voto Contrário');
+};
+
+document.getElementById('runOracle').onclick = async function() {
+  const orig = this.textContent;
+  this.classList.add('loading');
+  this.textContent = 'Consultando…';
+  try {
+    const p = await cOracle.obterPrecoAtualETH();
+    document.getElementById('priceBox').textContent = 'US$ ' + (p / 10**8).toFixed(2);
+    toast('Cotação ETH/USD atualizada!');
+  } catch(e) {
+    toast('Erro ao consultar oráculo.', false);
+    console.error(e);
+  } finally {
+    this.classList.remove('loading');
+    this.textContent = orig;
+  }
+};
+</script>
+</body>
+</html>
